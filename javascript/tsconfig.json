@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": false,
+    "target": "es6",
+    "outFile": "pragox.js"
+  },
+  "files": [
+    "pragox.ts"
+  ]
+}
