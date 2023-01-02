@@ -8,6 +8,13 @@
     "outFile": "pragox.js"
   },
   "files": [
+    "commands.ts",
+    "menu.ts",
+    "app.ts",
+    "list.ts",
+    "home.ts",
+    "files.ts",
+    "preview.ts",
     "pragox.ts"
   ]
 }

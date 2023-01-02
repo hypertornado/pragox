@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -49,17 +50,36 @@ func (h Handler) ServeHTTP(response http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	if request.Method == "GET" && request.URL.Path == "/" {
-		RenderApp(response, request)
-		return
+	if request.Method == "POST" {
+		switch request.URL.Path {
+		case "/api/list":
+			API(response, request, List)
+			return
+		case "/api/apps":
+			API(response, request, GetApps)
+			return
+		case "/api/download":
+			API(response, request, Download)
+			return
+		}
+	}
+
+	if request.Method == "GET" {
+
+		for _, app := range apps {
+			if app.URL == request.URL.Path {
+				app.RenderApp(response, request)
+				return
+			}
+		}
+
 	}
 
 	Render404(response, request)
 }
 
-func RenderApp(response http.ResponseWriter, request *http.Request) {
+func (app *App) RenderApp(response http.ResponseWriter, request *http.Request) {
 	t := template.New("")
-
 	if devMode {
 		var err error
 		appTemplate, err = os.ReadFile("templates/app.tmpl")
@@ -72,7 +92,19 @@ func RenderApp(response http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	t.ExecuteTemplate(response, "app", nil)
+
+	data := map[string]interface{}{}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	data["app_id"] = app.ID
+	data["app_name"] = app.Name
+	data["base_dir"] = fmt.Sprintf("/localhost%s", homeDir)
+
+	t.ExecuteTemplate(response, "app", data)
 
 }
 

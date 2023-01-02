@@ -1,9 +1,30 @@
 @use "normalize.scss";
+@use "layout.scss";
+@use "app.scss";
+@use "list.scss";
 
-body {
-    background-color: #ddd;
+
+
+
+
+a:hover {
+    text-decoration: none;
 }
 
-.hello {
-    color: red;
+button {
+    margin: 5px;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    background-color: #eee;
+}
+
+.preview {
+    padding: 0px 5px;
+}
+
+
+
+.home_item {
+    display: block;
+    padding: 5px 10px;
 }

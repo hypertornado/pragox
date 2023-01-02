@@ -14,6 +14,7 @@ var devMode bool
 func main() {
 	parseCommandLineParameters()
 	fmt.Printf("Starting pragox server at port %d\n", port)
+
 	address := fmt.Sprintf(":%d", port)
 	if err := http.ListenAndServe(address, Handler{}); err != nil {
 		log.Fatal(err)

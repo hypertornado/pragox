@@ -1,0 +1,51 @@
+
+
+.list_item {
+    padding: 3px 10px;
+    border-radius: 10px;
+    display: flex;
+}
+
+.list_item > div {
+    padding: 0px 3px;
+    color: #aaa;
+}
+
+.list_item_icon {
+    width: 1.3em;
+}
+
+.list_item_name {
+    flex-grow: 100;
+    color: #333 !important;
+}
+
+.list_item_size {
+    width: 200px;
+    text-align: right;
+}
+
+.list_item_date {
+    width: 200px;
+    font-family: monospace;
+}
+
+.list_item_kind {
+    width: 200px;
+}
+
+.list_item:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.list_item:hover {
+    cursor: default;
+}
+
+.list_item:active {
+    background-color: #eee;
+}
+
+.list_item-directory {
+    //font-weight: 600;
+}
