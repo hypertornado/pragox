@@ -1,14 +1,15 @@
 class Home extends App {
-  homeEl: HTMLDivElement;
+  homeComponent: HomeComponent;
 
   constructor() {
     super();
 
-    this.homeEl = document.createElement("div");
+    this.homeComponent = new HomeComponent(this.appContentComponent);
 
-    this.appContentEl.append(this.homeEl);
-    //document.body.append(this.homeEl);
-    this.homeEl.classList.add("home");
+    //this.homeEl = document.createElement("div");
+
+    //this.appContentEl.append(this.homeEl);
+    //this.homeEl.classList.add("home");
 
     this.loadApps();
   }
@@ -36,9 +37,21 @@ class Home extends App {
       let el = document.createElement("a");
       el.classList.add("home_item");
       el.setAttribute("href", app.URL);
-      el.innerText = app.Name;
 
-      this.homeEl.append(el);
+      let iconEl = div(el, "home_item_icon");
+      iconEl.innerText = app.Icon;
+
+      let nameEl = div(el, "home_item_name");
+      nameEl.innerText = app.Name;
+
+      this.homeComponent.rootEl.append(el);
     }
+  }
+}
+
+class HomeComponent extends Component {
+  constructor(parent: Component) {
+    super(parent);
+    this.addCSSClass("home");
   }
 }

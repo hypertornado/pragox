@@ -1,25 +1,27 @@
 package main
 
-import "io/ioutil"
+import (
+	"net/http"
+	"os"
+	"time"
+)
 
-type DownloadRequest struct {
-	Path string
-}
+func Download(response http.ResponseWriter, request *http.Request) {
+	reqPath := request.URL.Query().Get("path")
 
-type DownloadResponse struct {
-	Data string
-}
-
-func Download(request *DownloadRequest) *DownloadResponse {
-	osPath, err := parseLocalhostPath(request.Path)
+	osPath, err := parseLocalhostPath(PragoxPath(reqPath))
 	if err != nil {
 		panic(err)
 	}
-	data, err := ioutil.ReadFile(osPath)
+
+	//http.ServeFile(response, request, osPath)
+
+	file, err := os.Open(osPath)
 	if err != nil {
 		panic(err)
 	}
-	return &DownloadResponse{
-		Data: string(data),
-	}
+	defer file.Close()
+
+	http.ServeContent(response, request, "", time.Now(), file)
+
 }

@@ -2,13 +2,16 @@
 @use "layout.scss";
 @use "app.scss";
 @use "list.scss";
+@use "home.scss";
+@use "preview.scss";
 
 
+video {
+    border: none;
+}
 
-
-
-a:hover {
-    text-decoration: none;
+iframe {
+    border: none;
 }
 
 button {
@@ -18,13 +21,3 @@ button {
     background-color: #eee;
 }
 
-.preview {
-    padding: 0px 5px;
-}
-
-
-
-.home_item {
-    display: block;
-    padding: 5px 10px;
-}

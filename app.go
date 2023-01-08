@@ -2,6 +2,7 @@ package main
 
 type App struct {
 	ID   string
+	Icon string
 	Name string
 	URL  string
 }
@@ -9,16 +10,19 @@ type App struct {
 var apps = []*App{
 	{
 		ID:   "home",
+		Icon: "🌍",
 		Name: "Pragox",
 		URL:  "/",
 	},
 	{
 		ID:   "files",
+		Icon: "🗂",
 		Name: "Files",
 		URL:  "/files",
 	},
 	{
 		ID:   "preview",
+		Icon: "👀",
 		Name: "Preview",
 		URL:  "/preview",
 	},

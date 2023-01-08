@@ -1,11 +1,7 @@
-class Commands {
-  app: App;
-
-  appCommandsEl: HTMLDivElement;
-
-  constructor(app: App) {
-    this.app = app;
-    this.appCommandsEl = div(this.app.appHeaderEl, "app_header_commands");
+class Commands extends Component {
+  constructor(parent: Component) {
+    super(parent);
+    this.addCSSClass("app_header_commands");
   }
 
   add(icon: string): Command {
@@ -14,21 +10,37 @@ class Commands {
   }
 }
 
-class Command {
-  el: HTMLDivElement;
+class Command extends Component {
+  //el: HTMLDivElement;
+  handler: () => void;
+  commands: Commands;
 
   constructor(commands: Commands, icon: string) {
-    this.el = div(commands.appCommandsEl, "app_header_command");
-    this.el.innerText = icon;
+    super(commands);
+
+    this.commands = commands;
+    this.addCSSClass("app_header_command");
+    //this.el = div(commands.rootEl, "app_header_command");
+    this.rootEl.innerText = icon;
   }
 
   setHandler(fn: () => void) {
-    this.el.addEventListener("click", () => {
+    this.handler = fn;
+    this.rootEl.addEventListener("click", () => {
       fn();
     });
   }
 
-  setName(name: string) {
-    this.el.setAttribute("title", name);
+  setName(name: string): Command {
+    this.rootEl.setAttribute("title", name);
+    return this;
+  }
+
+  shortcut(codes: string): Command {
+    let shortcut = new Shortcut(codes, () => {
+      this.handler();
+    });
+    this.commands.app.registerShortcut(shortcut);
+    return this;
   }
 }

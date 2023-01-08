@@ -1,0 +1,37 @@
+.home {
+    display: flex;
+    padding: 10px;
+}
+
+a.home_item {
+    display: block;
+    padding: 0px 0px;
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    align-items: center;
+    cursor: default;
+    flex-wrap: wrap;
+}
+
+.home_item_icon {
+    border: 1px solid #eee;
+    box-shadow: 0px 0px 20px rgba(0,0,0,0.2) ;
+    width: 100px;
+    height: 100px;
+    text-align: center;
+    line-height: 100px;
+    font-size: 60px;
+    border-radius: 20px;
+}
+
+a.home_item:hover .home_item_icon {
+    background-color: #fafafa;
+}
+
+.home_item_name {
+    color: #777;
+    line-height: 2em;
+
+}

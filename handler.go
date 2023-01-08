@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -55,16 +56,21 @@ func (h Handler) ServeHTTP(response http.ResponseWriter, request *http.Request) 
 		case "/api/list":
 			API(response, request, List)
 			return
+		case "/api/fileinfo":
+			API(response, request, FileInfo)
+			return
 		case "/api/apps":
 			API(response, request, GetApps)
-			return
-		case "/api/download":
-			API(response, request, Download)
 			return
 		}
 	}
 
 	if request.Method == "GET" {
+		switch request.URL.Path {
+		case "/api/download":
+			Download(response, request)
+			return
+		}
 
 		for _, app := range apps {
 			if app.URL == request.URL.Path {
@@ -99,6 +105,13 @@ func (app *App) RenderApp(response http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
+	appData, err := json.Marshal(app)
+	if err != nil {
+		panic(err)
+	}
+
+	data["app_data"] = string(appData)
 
 	data["app_id"] = app.ID
 	data["app_name"] = app.Name

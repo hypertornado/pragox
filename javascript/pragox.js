@@ -1,42 +1,82 @@
-class Commands {
+class Component {
+    constructor(parent) {
+        this.children = [];
+        if (!this.rootEl) {
+            this.rootEl = document.createElement("div");
+        }
+        if (parent) {
+            this.app = parent.app;
+            this.parent = parent;
+            this.parent.addChild(this);
+        }
+    }
+    addChild(child) {
+        this.children.push(child);
+        this.rootEl.append(child.rootEl);
+    }
+    addCSSClass(className) {
+        this.rootEl.classList.add(className);
+    }
+}
+class AppComponent extends Component {
     constructor(app) {
+        super();
         this.app = app;
-        this.appCommandsEl = div(this.app.appHeaderEl, "app_header_commands");
+        this.addCSSClass("app");
+        document.body.append(this.rootEl);
+    }
+}
+class Commands extends Component {
+    constructor(parent) {
+        super(parent);
+        this.addCSSClass("app_header_commands");
     }
     add(icon) {
         let ret = new Command(this, icon);
         return ret;
     }
 }
-class Command {
+class Command extends Component {
     constructor(commands, icon) {
-        this.el = div(commands.appCommandsEl, "app_header_command");
-        this.el.innerText = icon;
+        super(commands);
+        this.commands = commands;
+        this.addCSSClass("app_header_command");
+        this.rootEl.innerText = icon;
     }
     setHandler(fn) {
-        this.el.addEventListener("click", () => {
+        this.handler = fn;
+        this.rootEl.addEventListener("click", () => {
             fn();
         });
     }
     setName(name) {
-        this.el.setAttribute("title", name);
+        this.rootEl.setAttribute("title", name);
+        return this;
+    }
+    shortcut(codes) {
+        let shortcut = new Shortcut(codes, () => {
+            this.handler();
+        });
+        this.commands.app.registerShortcut(shortcut);
+        return this;
     }
 }
-class Menu {
-    constructor(app) {
-        this.app = app;
-        this.appMenuEl = div(this.app.appHeaderEl, "app_header_menu");
+class Menu extends Component {
+    constructor(component) {
+        super(component);
+        this.addCSSClass("app_header_menu");
     }
     add(name) {
         let ret = new MenuItem(this, name);
         return ret;
     }
 }
-class MenuItem {
+class MenuItem extends Component {
     constructor(menu, name) {
-        this.el = div(menu.appMenuEl, "app_header_menu_item");
-        this.el.innerText = name;
-        this.el.addEventListener("click", () => {
+        super(menu);
+        this.addCSSClass("app_header_menu_item");
+        this.rootEl.innerText = name;
+        this.rootEl.addEventListener("click", () => {
             if (this.handlerFn) {
                 this.handlerFn();
             }
@@ -48,12 +88,40 @@ class MenuItem {
 }
 class App {
     constructor() {
-        this.appName = document.body.getAttribute("data-app-name");
+        this.shortcuts = Array();
+        this.appData = JSON.parse(document.body.getAttribute("data-app"));
         this.createAppSkeleton();
-        this.menuItem("🌍").setHandler(() => {
+        this.setFavicon();
+        this.listenShortcuts();
+        this.menuItem(this.appData.Icon + " " + this.appData.Name).setHandler(() => {
             window.location = "/";
         });
-        this.menuItem(this.appName).setHandler(() => { });
+    }
+    getURLParam(key) {
+        let queryString = window.location.search;
+        let urlParams = new URLSearchParams(queryString);
+        return urlParams.get(key);
+    }
+    setFavicon() {
+        let icon = this.appData.Icon;
+        let link = document.createElement("link");
+        link.setAttribute("rel", "icon");
+        let svgData = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${icon}</text></svg>`;
+        link.setAttribute("href", svgData);
+        document.querySelector("head").append(link);
+    }
+    listenShortcuts() {
+        document.addEventListener("keyup", (e) => {
+            this.shortcuts.forEach((val) => {
+                if (val.matches(e)) {
+                    val.handler();
+                }
+            });
+            console.log(e);
+        });
+    }
+    registerShortcut(shortcut) {
+        this.shortcuts.push(shortcut);
     }
     menuItem(name) {
         return this.menu.add(name);
@@ -64,12 +132,62 @@ class App {
         return ret;
     }
     createAppSkeleton() {
-        document.title = this.appName;
-        this.appEl = div(document.body, "app");
-        this.appHeaderEl = div(this.appEl, "app_header");
-        this.menu = new Menu(this);
-        this.commands = new Commands(this);
-        this.appContentEl = div(this.appEl, "app_content");
+        document.title = this.appData.Name;
+        this.appComponent = new AppComponent(this);
+        this.header = new Component(this.appComponent);
+        this.header.addCSSClass("app_header");
+        this.menu = new Menu(this.header);
+        this.commands = new Commands(this.header);
+        this.appContentComponent = new Component(this.appComponent);
+        this.appContentComponent.addCSSClass("app_content");
+    }
+    contentHeight() {
+        return window.innerHeight - this.header.rootEl.offsetHeight;
+    }
+    listenResize(resizeHandler) {
+        window.addEventListener("resize", resizeHandler);
+    }
+    fitContent(el) {
+        let fn = function () {
+            let width = document.body.offsetWidth;
+            let height = this.contentHeight();
+            el.setAttribute("width", width + "");
+            el.setAttribute("height", height + "");
+            el.setAttribute("style", "width:" + width + "px; height: " + height + "px;");
+        };
+        fn.bind(this)();
+        this.listenResize(fn.bind(this));
+    }
+    api(procedure, requestData, handler, errorhandler) {
+        let request = new XMLHttpRequest();
+        request.open("POST", "/api/" + procedure, true);
+        request.addEventListener("load", () => {
+            if (request.status != 200) {
+                let errText = `Error while calling API ${procedure}.`;
+                if (errorhandler) {
+                    errorhandler(errText);
+                }
+                else {
+                    console.error(errText);
+                }
+                return;
+            }
+            let responseData = JSON.parse(request.response);
+            handler(responseData);
+        });
+        request.send(JSON.stringify(requestData));
+    }
+    apiDownload(path, handler) {
+        let request = new XMLHttpRequest();
+        request.open("GET", "/api/download?path=" + encodeURI(path), true);
+        request.addEventListener("load", () => {
+            if (request.status != 200) {
+                handler(null);
+                return;
+            }
+            handler(request.response);
+        });
+        request.send();
     }
 }
 function div(parentEl, className) {
@@ -80,38 +198,79 @@ function div(parentEl, className) {
     parentEl.append(ret);
     return ret;
 }
-class List {
-    constructor(el) {
-        this.el = el;
-        this.loadHome();
-    }
-    loadHome() {
-        this.loadData(document.body.getAttribute("data-home"));
+class List extends Component {
+    constructor(parent, path, loadedHandler) {
+        super(parent);
+        this.selectedItem = -1;
+        this.loadedHandler = loadedHandler;
+        this.loadData(path);
     }
     loadData(path) {
-        let request = new XMLHttpRequest();
-        request.open("POST", "/api/list", true);
-        request.addEventListener("load", () => {
-            if (request.status != 200) {
-                console.error("Error while saving order.");
-                return;
-            }
-            var data = JSON.parse(request.response);
+        this.app.api("list", { Path: path }, (data) => {
             this.setData(data);
+            if (this.loadedHandler) {
+                this.loadedHandler();
+            }
         });
-        request.send(JSON.stringify({ Path: path }));
+    }
+    selectUp() {
+        if (this.selectedItem >= 0) {
+            this.selectedItem -= 1;
+            if (this.selectedItem < 0) {
+                this.selectedItem = 0;
+            }
+        }
+        else {
+            this.selectedItem = this.selectedMaxCount() - 1;
+        }
+        this.renderSelection();
+    }
+    selectDown() {
+        if (this.selectedItem < 0) {
+            this.selectedItem = 0;
+        }
+        else {
+            this.selectedItem += 1;
+            if (this.selectedItem >= this.selectedMaxCount()) {
+                this.selectedItem = this.selectedMaxCount() - 1;
+            }
+        }
+        this.renderSelection();
+    }
+    enterSelected() {
+        if (this.selectedItem >= 0) {
+            this.openFile(this.selectedItem);
+        }
+    }
+    renderSelection() {
+        this.renderSelectionRemove();
+        let selected = this.rootEl.querySelectorAll(".list_item");
+        if (this.selectedItem >= 0) {
+            selected[this.selectedItem].classList.add("list_item-selected");
+        }
+    }
+    renderSelectionRemove() {
+        let selected = this.rootEl.querySelectorAll(".list_item-selected");
+        for (var i = 0; i < selected.length; i++) {
+            selected[i].classList.remove("list_item-selected");
+        }
+    }
+    selectedMaxCount() {
+        return this.filesData.Files.length;
     }
     setData(data) {
+        this.selectedItem = -1;
         this.filesData = data;
-        this.el.innerHTML = "";
+        this.rootEl.innerHTML = "";
         for (var i = 0; i < data.Files.length; i++) {
             let file = data.Files[i];
-            let row = div(this.el, "list_item");
+            let row = div(this.rootEl, "list_item");
             row.setAttribute("data-index", i + "");
             if (file.IsDir) {
                 row.classList.add("list_item-directory");
             }
             row.addEventListener("click", this.clickFile.bind(this));
+            row.addEventListener("dblclick", this.enterSelected.bind(this));
             let iconEl = div(row, "list_item_icon");
             iconEl.innerText = file.Icon;
             let nameEl = div(row, "list_item_name");
@@ -127,6 +286,10 @@ class List {
     clickFile(e) {
         let target = e.currentTarget;
         let index = target.getAttribute("data-index");
+        this.selectedItem = parseInt(index);
+        this.renderSelection();
+    }
+    openFile(index) {
         let file = this.filesData.Files[index];
         if (file.IsDir) {
             this.loadData(file.Path);
@@ -144,9 +307,7 @@ class List {
 class Home extends App {
     constructor() {
         super();
-        this.homeEl = document.createElement("div");
-        this.appContentEl.append(this.homeEl);
-        this.homeEl.classList.add("home");
+        this.homeComponent = new HomeComponent(this.appContentComponent);
         this.loadApps();
     }
     loadApps() {
@@ -168,50 +329,221 @@ class Home extends App {
             let el = document.createElement("a");
             el.classList.add("home_item");
             el.setAttribute("href", app.URL);
-            el.innerText = app.Name;
-            this.homeEl.append(el);
+            let iconEl = div(el, "home_item_icon");
+            iconEl.innerText = app.Icon;
+            let nameEl = div(el, "home_item_name");
+            nameEl.innerText = app.Name;
+            this.homeComponent.rootEl.append(el);
         }
+    }
+}
+class HomeComponent extends Component {
+    constructor(parent) {
+        super(parent);
+        this.addCSSClass("home");
     }
 }
 class Files extends App {
     constructor() {
         super();
-        var listEl = document.createElement("div");
-        listEl.classList.add("list");
-        this.appContentEl.append(listEl);
-        this.list = new List(listEl);
+        let path = this.getURLParam("path");
+        if (!path) {
+            path = this.homePath();
+        }
+        this.list = new List(this.appContentComponent, path, this.changedListPath.bind(this));
         this.command("↑", () => {
             this.list.levelUp();
-        }).setName("O úroveň výš");
+        })
+            .setName("Level up")
+            .shortcut("alt+#38");
         this.command("🏠", () => {
-            this.list.loadHome();
-        }).setName("Domů");
+            this.list.loadData(this.homePath());
+        })
+            .setName("Home")
+            .shortcut("alt+h");
+        this.command("up", () => {
+            this.list.selectUp();
+        })
+            .setName("Up")
+            .shortcut("#38");
+        this.command("down", () => {
+            this.list.selectDown();
+        })
+            .setName("Down")
+            .shortcut("#40");
+        this.command("enter", () => {
+            this.list.enterSelected();
+        })
+            .setName("Open")
+            .shortcut("#13");
+    }
+    homePath() {
+        return document.body.getAttribute("data-home");
+    }
+    changedListPath() {
+        document.title = this.list.filesData.CurrentDirInfo.Name;
+        history.pushState({}, null, "/files?path=" + encodeURI(this.list.filesData.CurrentPath));
     }
 }
 class Preview extends App {
     constructor() {
         super();
-        this.previewEl = document.createElement("div");
-        this.previewEl.classList.add("preview");
-        this.appContentEl.append(this.previewEl);
-        let queryString = window.location.search;
-        let urlParams = new URLSearchParams(queryString);
-        let path = urlParams.get("path");
-        this.previewData(path);
-    }
-    previewData(path) {
-        let request = new XMLHttpRequest();
-        request.open("POST", "/api/download", true);
-        request.addEventListener("load", () => {
-            if (request.status != 200) {
-                console.error("Error while downloading item.");
+        this.previewComponent = new PreviewComponent(this.appContentComponent);
+        let path = this.getURLParam("path");
+        this.api("fileinfo", { Path: path }, (data) => {
+            let mimeType = data.MimeType;
+            if (mimeType.startsWith("image/")) {
+                new PreviewImage(this, path);
                 return;
             }
-            var data = JSON.parse(request.response);
-            this.previewEl.innerText = data.Data;
-            console.log(data);
+            if (mimeType.startsWith("audio/")) {
+                new PreviewAudio(this, path);
+                return;
+            }
+            if (mimeType.startsWith("video/")) {
+                new PreviewVideo(this, path);
+                return;
+            }
+            if (mimeType.startsWith("application/pdf")) {
+                new PreviewIframe(this, path);
+                return;
+            }
+            this.apiDownload(path, (data) => {
+                new PreviewText(this, data);
+            });
         });
-        request.send(JSON.stringify({ Path: path }));
+    }
+    attach(el) {
+        this.previewComponent.rootEl.innerText = "";
+        this.previewComponent.rootEl.append(el);
+    }
+}
+class PreviewComponent extends Component {
+    constructor(component) {
+        super(component);
+        this.addCSSClass("preview");
+    }
+}
+class PreviewText {
+    constructor(preview, data) {
+        this.preview = preview;
+        this.rootEl = document.createElement("div");
+        this.rootEl.classList.add("preview_text");
+        this.rootEl.innerText = data;
+        preview.attach(this.rootEl);
+    }
+}
+class PreviewImage {
+    constructor(preview, data) {
+        this.preview = preview;
+        this.imageContainer = document.createElement("div");
+        this.imageContainer.classList.add("preview_img");
+        this.imageEl = document.createElement("img");
+        this.imageEl.setAttribute("src", "/api/download?path=" + encodeURI(data));
+        this.imageEl.addEventListener("click", () => {
+            this.imageEl.classList.toggle("full_size");
+        });
+        this.imageContainer.append(this.imageEl);
+        preview.fitContent(this.imageContainer);
+        preview.attach(this.imageContainer);
+    }
+}
+class PreviewAudio {
+    constructor(preview, path) {
+        this.audioEl = document.createElement("audio");
+        this.audioEl.setAttribute("controls", "");
+        this.audioEl.setAttribute("autoplay", "true");
+        this.audioEl.setAttribute("src", "/api/download?path=" + encodeURI(path));
+        this.audioEl.setAttribute("width", preview.previewComponent.rootEl.offsetWidth + "");
+        this.audioEl.setAttribute("height", preview.contentHeight() + "");
+        this.audioEl.setAttribute("style", "width: calc(100vw - 20px); margin-top: 40vh; margin-left: 10px;");
+        preview.attach(this.audioEl);
+    }
+}
+class PreviewVideo {
+    constructor(preview, path) {
+        this.videoEl = document.createElement("video");
+        this.videoEl.setAttribute("controls", "");
+        this.videoEl.setAttribute("autoplay", "true");
+        this.videoEl.setAttribute("src", "/api/download?path=" + encodeURI(path));
+        preview.fitContent(this.videoEl);
+        preview.attach(this.videoEl);
+    }
+}
+class PreviewIframe {
+    constructor(preview, path) {
+        this.iframeEl = document.createElement("iframe");
+        this.iframeEl.setAttribute("src", "/api/download?path=" + encodeURI(path));
+        preview.fitContent(this.iframeEl);
+        preview.attach(this.iframeEl);
+    }
+}
+class Shortcut {
+    constructor(str, handler) {
+        this.ctrl = false;
+        this.alt = false;
+        this.shift = false;
+        this.handler = handler;
+        this.whichCode = -1;
+        let parts = str.split("+");
+        for (let i = 0; i < parts.length; i++) {
+            let part = parts[i];
+            part = part.toLowerCase();
+            if (part.length == 1) {
+                if (this.whichCode != -1) {
+                    console.error("which code already set");
+                    return;
+                }
+                this.whichCode = part.charCodeAt(0) - 32;
+            }
+            else {
+                switch (part) {
+                    case "ctrl":
+                        this.ctrl = true;
+                        break;
+                    case "alt":
+                        this.alt = true;
+                        break;
+                    case "shift":
+                        this.shift = true;
+                        break;
+                    default:
+                        if (part.length >= 2 && part.startsWith("#")) {
+                            if (this.whichCode != -1) {
+                                console.error("which code already set");
+                                return;
+                            }
+                            part = part.replace("#", "");
+                            let codeInt = parseInt(part);
+                            if (codeInt < 0) {
+                                console.error("unknown shortcut " + part);
+                                return;
+                            }
+                            this.whichCode = codeInt;
+                        }
+                        else {
+                            console.error("unknown shortcut " + part);
+                        }
+                }
+            }
+        }
+    }
+    matches(e) {
+        if (e.which != this.whichCode) {
+            return false;
+        }
+        if (this.shift != e.shiftKey) {
+            return false;
+        }
+        if (this.alt != e.altKey) {
+            return false;
+        }
+        if (this.ctrl) {
+            if (!e.metaKey && !e.ctrlKey) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 class Pragox {

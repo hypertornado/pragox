@@ -1,10 +1,8 @@
-class Menu {
-  app: App;
-  appMenuEl: HTMLDivElement;
+class Menu extends Component {
+  constructor(component: Component) {
+    super(component);
 
-  constructor(app: App) {
-    this.app = app;
-    this.appMenuEl = div(this.app.appHeaderEl, "app_header_menu");
+    this.addCSSClass("app_header_menu");
   }
 
   add(name: string): MenuItem {
@@ -13,14 +11,17 @@ class Menu {
   }
 }
 
-class MenuItem {
-  el: HTMLDivElement;
+class MenuItem extends Component {
+  //el: HTMLDivElement;
   handlerFn: () => void;
 
   constructor(menu: Menu, name: string) {
-    this.el = div(menu.appMenuEl, "app_header_menu_item");
-    this.el.innerText = name;
-    this.el.addEventListener("click", () => {
+    super(menu);
+    this.addCSSClass("app_header_menu_item");
+
+    //this.el = div(menu.rootEl, "app_header_menu_item");
+    this.rootEl.innerText = name;
+    this.rootEl.addEventListener("click", () => {
       if (this.handlerFn) {
         this.handlerFn();
       }

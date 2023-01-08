@@ -6,6 +6,15 @@
     display: flex;
 }
 
+.list_item-selected {
+    background-color: dodgerblue !important;
+}
+
+.list_item-selected > div {
+    color: white !important;
+
+}
+
 .list_item > div {
     padding: 0px 3px;
     color: #aaa;

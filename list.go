@@ -11,27 +11,41 @@ import (
 	"golang.org/x/text/language"
 )
 
+type PragoxPath string
+
 type ListRequest struct {
-	Path string
+	Path PragoxPath
 }
 
 type ListResponse struct {
-	ParentPath string
-	Files      []*FileInfo
-}
-
-type FileInfo struct {
-	Icon  string
-	Name  string
-	IsDir bool
-	Path  string
-
-	ChangeDataHuman string
-	SizeHuman       string
-	KindHuman       string
+	CurrentPath    PragoxPath
+	ParentPath     PragoxPath
+	CurrentDirInfo *FileInfoData
+	Files          []*FileInfoData
 }
 
 func List(req *ListRequest) *ListResponse {
+	if req.Path == "/" {
+		return ListRoot((req))
+	}
+	if req.Path == "/localhost" || strings.HasPrefix(string(req.Path), "/localhost/") {
+		return ListLocalhost((req))
+	}
+	panic("unknown path to list " + req.Path)
+}
+
+func ListRoot(req *ListRequest) *ListResponse {
+	ret := &ListResponse{
+		CurrentPath:    "/",
+		ParentPath:     "",
+		CurrentDirInfo: &FileInfoData{
+			//""
+		},
+	}
+	return ret
+}
+
+func ListLocalhost(req *ListRequest) *ListResponse {
 	ret := &ListResponse{}
 
 	diskPath, err := parseLocalhostPath(req.Path)
@@ -44,46 +58,28 @@ func List(req *ListRequest) *ListResponse {
 		panic(err)
 	}
 
-	ret.ParentPath = createLocalhostPath(path.Dir(diskPath))
+	ret.ParentPath = PragoxPath(createLocalhostPath(
+		path.Dir(diskPath),
+	))
 
 	for _, info := range infos {
-		var file = &FileInfo{}
-		file.Name = info.Name()
-
-		file.Path = path.Join("/localhost", diskPath, info.Name())
-
-		file.IsDir = info.IsDir()
-
-		file.ChangeDataHuman = info.ModTime().Format("02. 01. 2006 15:04:05")
-		file.SizeHuman = fmt.Sprintf("%d B", info.Size())
-
-		if file.IsDir {
-			file.KindHuman = "Folder"
-		} else {
-			file.KindHuman = "Document"
-		}
-
-		if file.IsDir {
-			file.Icon = "🗂"
-			file.SizeHuman = "—"
-		} else {
-			file.Icon = "📄"
-		}
-
-		ret.Files = append(ret.Files, file)
+		ret.Files = append(ret.Files, getFileInfoFromOS(info, PragoxPath(path.Join(string(req.Path), info.Name()))))
 	}
+
+	ret.CurrentPath = req.Path
+	ret.CurrentDirInfo = FileInfo(&FileInfoRequest{req.Path})
 
 	sortFiles(ret.Files)
 
 	return ret
 }
 
-func parseLocalhostPath(in string) (string, error) {
+func parseLocalhostPath(in PragoxPath) (string, error) {
 	if in == "/localhost" {
 		return "/", nil
 	}
 
-	bef, after, found := strings.Cut(in, "/localhost/")
+	bef, after, found := strings.Cut(string(in), "/localhost/")
 	if found && bef == "" {
 		return "/" + after, nil
 	}
@@ -95,8 +91,8 @@ func createLocalhostPath(in ...string) string {
 	return path.Join(in...)
 }
 
-func sortFiles(arr []*FileInfo) {
-	sortArray(arr, func(a, b *FileInfo) bool {
+func sortFiles(arr []*FileInfoData) {
+	sortArray(arr, func(a, b *FileInfoData) bool {
 		if a.IsDir && !b.IsDir {
 			return true
 		}
@@ -120,4 +116,17 @@ func sortArray[T any](data []T, fn func(a, b T) bool) {
 		b := data[j]
 		return fn(a, b)
 	})
+}
+
+func ByteCountDecimal(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "kMGTPE"[exp])
 }

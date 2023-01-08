@@ -1,53 +1,97 @@
-class List {
-  el: HTMLDivElement;
+class List extends Component {
+  //el: HTMLDivElement;
   filesData: any;
-  //parentPath: string;
+  //app: App;
+  selectedItem: number;
 
-  constructor(el: HTMLDivElement) {
-    this.el = el;
-    this.loadHome();
-  }
+  loadedHandler: () => void;
 
-  loadHome() {
-    this.loadData(document.body.getAttribute("data-home"));
+  constructor(parent: Component, path: string, loadedHandler?: () => void) {
+    super(parent);
+    //this.app = app;
+    this.selectedItem = -1;
+    //this.el = el;
+    this.loadedHandler = loadedHandler;
+    this.loadData(path);
   }
 
   loadData(path: string) {
-    let request = new XMLHttpRequest();
-
-    request.open("POST", "/api/list", true);
-    request.addEventListener("load", () => {
-      if (request.status != 200) {
-        console.error("Error while saving order.");
-        return;
-      }
-
-      var data = JSON.parse(request.response);
+    this.app.api("list", { Path: path }, (data) => {
       this.setData(data);
+      if (this.loadedHandler) {
+        this.loadedHandler();
+      }
     });
-    request.send(JSON.stringify({ Path: path }));
+  }
+
+  selectUp() {
+    if (this.selectedItem >= 0) {
+      this.selectedItem -= 1;
+      if (this.selectedItem < 0) {
+        this.selectedItem = 0;
+      }
+    } else {
+      this.selectedItem = this.selectedMaxCount() - 1;
+    }
+    this.renderSelection();
+  }
+
+  selectDown() {
+    if (this.selectedItem < 0) {
+      this.selectedItem = 0;
+    } else {
+      this.selectedItem += 1;
+      if (this.selectedItem >= this.selectedMaxCount()) {
+        this.selectedItem = this.selectedMaxCount() - 1;
+      }
+    }
+    this.renderSelection();
+  }
+
+  enterSelected() {
+    if (this.selectedItem >= 0) {
+      this.openFile(this.selectedItem);
+    }
+  }
+
+  renderSelection() {
+    this.renderSelectionRemove();
+    let selected = this.rootEl.querySelectorAll(".list_item");
+    if (this.selectedItem >= 0) {
+      selected[this.selectedItem].classList.add("list_item-selected");
+    }
+  }
+
+  renderSelectionRemove() {
+    let selected = this.rootEl.querySelectorAll(".list_item-selected");
+    for (var i = 0; i < selected.length; i++) {
+      selected[i].classList.remove("list_item-selected");
+    }
+  }
+
+  selectedMaxCount(): number {
+    return this.filesData.Files.length;
   }
 
   setData(data: any) {
+    this.selectedItem = -1;
     this.filesData = data;
 
-    this.el.innerHTML = "";
+    this.rootEl.innerHTML = "";
 
     for (var i = 0; i < data.Files.length; i++) {
       let file = data.Files[i];
 
-      let row = div(this.el, "list_item");
+      let row = div(this.rootEl, "list_item");
 
-      //var fileEl = document.createElement("div");
       row.setAttribute("data-index", i + "");
 
-      //fileEl.classList.add("list_item");
       if (file.IsDir) {
         row.classList.add("list_item-directory");
       }
 
-      //row.innerText = file.Name;
       row.addEventListener("click", this.clickFile.bind(this));
+      row.addEventListener("dblclick", this.enterSelected.bind(this));
 
       let iconEl = div(row, "list_item_icon");
       iconEl.innerText = file.Icon;
@@ -71,14 +115,17 @@ class List {
   clickFile(e: any) {
     let target = <HTMLDivElement>e.currentTarget;
     let index = target.getAttribute("data-index");
+    this.selectedItem = parseInt(index);
+    this.renderSelection();
+  }
+
+  openFile(index: number) {
     let file = this.filesData.Files[index];
     if (file.IsDir) {
       this.loadData(file.Path);
     } else {
       window.open("/preview?path=" + file.Path, "_blank");
     }
-
-    //console.log(this.filesData);
   }
 
   levelUp() {
